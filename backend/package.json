@@ -1,0 +1,17 @@
+// backend/package.json (important deps)
+{
+  "name":"fuel-backend",
+  "version":"1.0.0",
+  "main":"server.js",
+  "scripts": { "start": "node server.js", "dev":"nodemon server.js" },
+  "dependencies": {
+    "express":"^4.x",
+    "mongoose":"^7.x",
+    "dotenv":"^16.x",
+    "node-fetch":"^3.x",
+    "cors":"^2.x",
+    "bcrypt":"^5.x",
+    "jsonwebtoken":"^9.x"
+  },
+  "devDependencies": { "nodemon":"^2.x" }
+}
