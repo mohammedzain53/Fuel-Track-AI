@@ -124,8 +124,9 @@ export default function FuelList({ refresh }) {
             <tr>
               <th>Date</th>
               <th>Station</th>
-              <th>Liters</th>
-              <th>Price/L</th>
+              <th>Fuel Type</th>
+              <th>Quantity</th>
+              <th>Price/Unit</th>
               <th>Total Cost</th>
               <th>Odometer</th>
             </tr>
@@ -133,27 +134,64 @@ export default function FuelList({ refresh }) {
           <tbody>
             {entries.length === 0 ? (
               <tr>
-                <td colSpan="6" className="text-center">No fuel entries found</td>
+                <td colSpan="7" className="text-center">No fuel entries found</td>
               </tr>
             ) : (
-              entries.map((entry) => (
-                <tr key={entry._id}>
-                  <td>
-                    {new Date(entry.date).toLocaleDateString('en-IN', {
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric'
-                    })}
-                  </td>
-                  <td>
-                    <strong>{entry.stationName || 'Unknown Station'}</strong>
-                  </td>
-                  <td>{entry.liters}L</td>
-                  <td>₹{entry.pricePerLiter.toFixed(2)}</td>
-                  <td><strong>₹{entry.totalCost.toFixed(2)}</strong></td>
-                  <td>{entry.odometer || '-'}</td>
-                </tr>
-              ))
+              entries.map((entry) => {
+                const fuelTypeIcons = {
+                  petrol: '⛽',
+                  diesel: '🚛',
+                  cng: '🌿',
+                  electric: '⚡'
+                };
+                
+                const getQuantityDisplay = (entry) => {
+                  const fuelType = entry.fuelType || 'petrol';
+                  if (fuelType === 'cng') {
+                    return `${entry.liters}kg`;
+                  } else if (fuelType === 'electric') {
+                    return `${entry.liters} charge${entry.liters > 1 ? 's' : ''}`;
+                  } else {
+                    return `${entry.liters}L`;
+                  }
+                };
+                
+                const getPriceDisplay = (entry) => {
+                  const fuelType = entry.fuelType || 'petrol';
+                  if (fuelType === 'cng') {
+                    return `₹${entry.pricePerLiter.toFixed(2)}/kg`;
+                  } else if (fuelType === 'electric') {
+                    return `₹${entry.pricePerLiter.toFixed(2)}/charge`;
+                  } else {
+                    return `₹${entry.pricePerLiter.toFixed(2)}/L`;
+                  }
+                };
+                
+                return (
+                  <tr key={entry._id}>
+                    <td>
+                      {new Date(entry.date).toLocaleDateString('en-IN', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric'
+                      })}
+                    </td>
+                    <td>
+                      <strong>{entry.stationName || 'Unknown Station'}</strong>
+                    </td>
+                    <td>
+                      <span className="fuel-type-badge">
+                        {fuelTypeIcons[entry.fuelType] || '⛽'} 
+                        {(entry.fuelType || 'petrol').charAt(0).toUpperCase() + (entry.fuelType || 'petrol').slice(1)}
+                      </span>
+                    </td>
+                    <td>{getQuantityDisplay(entry)}</td>
+                    <td>{getPriceDisplay(entry)}</td>
+                    <td><strong>₹{entry.totalCost.toFixed(2)}</strong></td>
+                    <td>{entry.odometer || '-'}</td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

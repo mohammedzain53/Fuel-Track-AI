@@ -24,4 +24,9 @@ router.get('/profile', authMiddleware, authController.getProfile);
 // @access  Private
 router.put('/profile', authMiddleware, authController.updateProfile);
 
+// @route   POST /api/auth/change-password
+// @desc    Change user password
+// @access  Private
+router.post('/change-password', authMiddleware, authController.changePassword);
+
 module.exports = router;

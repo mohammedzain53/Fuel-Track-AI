@@ -10,6 +10,11 @@ const FuelEntrySchema = new mongoose.Schema({
   liters: { type: Number, required: true },
   pricePerLiter: { type: Number, required: true },
   totalCost: { type: Number, required: true },
+  fuelType: { 
+    type: String, 
+    enum: ['petrol', 'diesel', 'cng', 'electric'], 
+    default: 'petrol' 
+  },
   odometer: Number,
   notes: String,
 }, { timestamps: true });

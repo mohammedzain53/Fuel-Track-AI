@@ -35,7 +35,7 @@ router.post('/message', async (req, res) => {
     
     try {
       // Create a mock request object for the station controller
-      const mockReq = { query: { lat, lng, radius: 5000 } };
+      const mockReq = { query: { lat, lng, radius: 3000 } }; // Reduced to 3km for local results
       const mockRes = {
         json: (data) => {
           if (data.success && data.stations && data.stations.length > 0) {

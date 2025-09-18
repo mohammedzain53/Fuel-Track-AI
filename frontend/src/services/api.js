@@ -54,3 +54,12 @@ export async function chatbotMessage(payload) {
   });
   return res.json();
 }
+
+export async function changePassword(passwordData) {
+  const res = await fetch(`${API_BASE}/auth/change-password`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(passwordData)
+  });
+  return res.json();
+}

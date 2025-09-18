@@ -8,6 +8,7 @@ export default function StationSearch({ onStationSelect }) {
   const [error, setError] = useState('');
   const [manualLocation, setManualLocation] = useState({ lat: '', lng: '' });
   const [showManualInput, setShowManualInput] = useState(false);
+  const [lastDetectedLocation, setLastDetectedLocation] = useState(null);
 
   async function searchNearby() {
     if (!navigator.geolocation) {
@@ -27,13 +28,37 @@ export default function StationSearch({ onStationSelect }) {
           reject, 
           {
             enableHighAccuracy: true,
-            timeout: 15000,
-            maximumAge: 300000 // 5 minutes cache
+            timeout: 25000,
+            maximumAge: 30000 // 30 seconds cache - fresher location data
           }
         );
       });
 
-      const { latitude, longitude } = position.coords;
+      const { latitude, longitude, accuracy, altitude, heading, speed } = position.coords;
+      
+      console.log(`Location detected: ${latitude.toFixed(6)}, ${longitude.toFixed(6)} (accuracy: ${accuracy}m)`);
+      console.log(`Additional info: altitude: ${altitude}m, heading: ${heading}°, speed: ${speed}m/s`);
+      
+      // Check if coordinates are reasonable for India
+      const isInIndia = latitude >= 6.0 && latitude <= 37.0 && longitude >= 68.0 && longitude <= 97.0;
+      if (!isInIndia) {
+        setError(`🌍 Location seems incorrect (${latitude.toFixed(4)}, ${longitude.toFixed(4)}). This doesn't appear to be in India. Please check your location settings.`);
+        return;
+      }
+      
+      // Warn if location accuracy is poor
+      if (accuracy > 1000) {
+        setError(`⚠️ Location accuracy is low (${Math.round(accuracy)}m). Results may not be precise. Try moving to an open area for better GPS signal.`);
+      } else if (accuracy > 100) {
+        setError(`📍 Location accuracy is moderate (${Math.round(accuracy)}m). For best results, ensure you're outdoors with clear sky view.`);
+      }
+      
+      // Store detected location
+      setLastDetectedLocation({ lat: latitude, lng: longitude, accuracy });
+      
+      // Show detected location to user for verification
+      setError(`📍 Location detected: ${latitude.toFixed(4)}, ${longitude.toFixed(4)} (±${Math.round(accuracy)}m)\n\n🔍 Please verify this is your current location. If not, use the Manual option below.`);
+      
       const data = await findStations(latitude, longitude);
       
       if (data.success && data.stations) {
@@ -164,6 +189,14 @@ export default function StationSearch({ onStationSelect }) {
             📝 Manual
           </button>
         </div>
+        
+        <div className="mb-3">
+          <small className="text-muted">
+            💡 <strong>For Mysore</strong>: Lat ~12.2958, Lng ~76.6394<br/>
+            💡 <strong>For Bangalore</strong>: Lat ~12.9716, Lng ~77.5946<br/>
+            💡 If GPS shows wrong city, use Manual option above
+          </small>
+        </div>
 
         {showManualInput && (
           <div className="mb-3 p-3 bg-light rounded">
@@ -197,15 +230,61 @@ export default function StationSearch({ onStationSelect }) {
             >
               Search This Location
             </button>
-            <small className="text-muted d-block mt-1">
-              💡 You can get coordinates from Google Maps by right-clicking on a location
-            </small>
+            <div className="mt-2">
+              <small className="text-muted d-block mb-2">
+                💡 You can get coordinates from Google Maps by right-clicking on a location
+              </small>
+              <div className="btn-group btn-group-sm w-100" role="group">
+                <button 
+                  className="btn btn-outline-info"
+                  onClick={() => setManualLocation({lat: '12.2958', lng: '76.6394'})}
+                >
+                  📍 Mysore
+                </button>
+                <button 
+                  className="btn btn-outline-info"
+                  onClick={() => setManualLocation({lat: '12.9716', lng: '77.5946'})}
+                >
+                  📍 Bangalore
+                </button>
+                <button 
+                  className="btn btn-outline-info"
+                  onClick={() => setManualLocation({lat: '13.0827', lng: '80.2707'})}
+                >
+                  📍 Chennai
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
         {error && (
-          <div className="alert alert-danger" role="alert">
-            {error}
+          <div className={`alert ${error.includes('📍 Location detected') ? 'alert-info' : 'alert-danger'}`} role="alert">
+            <pre style={{whiteSpace: 'pre-wrap', margin: 0, fontFamily: 'inherit'}}>{error}</pre>
+            {lastDetectedLocation && error.includes('📍 Location detected') && (
+              <div className="mt-2">
+                <a
+                  href={`https://www.google.com/maps?q=${lastDetectedLocation.lat},${lastDetectedLocation.lng}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-sm btn-outline-primary me-2"
+                >
+                  🗺️ Verify on Google Maps
+                </a>
+                <button
+                  className="btn btn-sm btn-outline-secondary"
+                  onClick={() => {
+                    setManualLocation({
+                      lat: lastDetectedLocation.lat.toFixed(6),
+                      lng: lastDetectedLocation.lng.toFixed(6)
+                    });
+                    setShowManualInput(true);
+                  }}
+                >
+                  📝 Edit Coordinates
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -213,27 +292,33 @@ export default function StationSearch({ onStationSelect }) {
           <div>
             <h6>⛽ Found {stations.length} Nearby Stations:</h6>
             <small className="text-muted mb-2 d-block">
-              💡 Addresses are being fetched in real-time. Click "View" to see exact location on Google Maps.
+              📍 Showing stations within 3km of your location. 
+              {lastDetectedLocation && (
+                <span className="text-info">
+                  {' '}(GPS accuracy: ±{Math.round(lastDetectedLocation.accuracy)}m)
+                </span>
+              )}
+              <br/>Click "View" to verify on Google Maps.
             </small>
             <div className="list-group">
               {stations.slice(0, 10).map((station, index) => (
                 <div
                   key={station.place_id || index}
-                  className="list-group-item"
+                  className="station-card"
                 >
                   <div className="d-flex w-100 justify-content-between align-items-start">
                     <div className="flex-grow-1">
-                      <h6 className="mb-1">
-                        {station.name}
+                      <div className="station-name">
+                        ⛽ {station.name}
                         {station.brand && station.brand !== station.name && (
-                          <small className="text-muted"> ({station.brand})</small>
+                          <small className="text-muted ms-2">({station.brand})</small>
                         )}
-                      </h6>
+                      </div>
                       {station.distance && (
-                        <small className="text-primary">📏 {station.distance}m away</small>
+                        <div className="station-distance">📏 {station.distance}m away</div>
                       )}
                     </div>
-                    <div className="btn-group btn-group-sm">
+                    <div className="d-flex gap-2">
                       {station.googleMapsUrl && (
                         <a
                           href={station.googleMapsUrl}
@@ -243,7 +328,7 @@ export default function StationSearch({ onStationSelect }) {
                           title="View on Google Maps"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          🗺️ View
+                          🗺️
                         </a>
                       )}
                       {station.googleMapsDirectionsUrl && (
@@ -255,7 +340,7 @@ export default function StationSearch({ onStationSelect }) {
                           title="Get Directions"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          🧭 Directions
+                          🧭
                         </a>
                       )}
                     </div>

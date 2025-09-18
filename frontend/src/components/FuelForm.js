@@ -8,11 +8,27 @@ export default function FuelForm({ onSaved, selectedStation }){
     pricePerLiter:'', 
     stationName:'', 
     odometer:'',
-    date: new Date().toISOString().split('T')[0] // Today's date in YYYY-MM-DD format
+    date: new Date().toISOString().split('T')[0], // Today's date in YYYY-MM-DD format
+    fuelType: 'petrol'
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Predefined fuel prices with correct units
+  const fuelPrices = {
+    petrol: 102.45,    // per liter
+    diesel: 90.59,     // per liter
+    cng: 84.00,        // per kg
+    electric: 350.00   // per full charge
+  };
+
+  const fuelTypes = [
+    { value: 'petrol', label: '⛽ Petrol', icon: '⛽', unit: 'L', unitLabel: 'per liter' },
+    { value: 'diesel', label: '🚛 Diesel', icon: '🚛', unit: 'L', unitLabel: 'per liter' },
+    { value: 'cng', label: '🌿 CNG', icon: '🌿', unit: 'kg', unitLabel: 'per kg' },
+    { value: 'electric', label: '⚡ Electric', icon: '⚡', unit: 'charge', unitLabel: 'per full charge' }
+  ];
 
   // Update form when station is selected
   useEffect(() => {
@@ -25,6 +41,15 @@ export default function FuelForm({ onSaved, selectedStation }){
       setTimeout(() => setSuccess(''), 3000);
     }
   }, [selectedStation]);
+
+  // Handle fuel type change and auto-fill price
+  const handleFuelTypeChange = (fuelType) => {
+    setForm(prev => ({
+      ...prev,
+      fuelType: fuelType,
+      pricePerLiter: fuelPrices[fuelType].toString()
+    }));
+  };
 
   async function submit(e){
     e.preventDefault();
@@ -39,7 +64,8 @@ export default function FuelForm({ onSaved, selectedStation }){
         totalCost: parseFloat(form.liters) * parseFloat(form.pricePerLiter),
         stationName: form.stationName || 'Unknown Station',
         odometer: form.odometer ? parseInt(form.odometer) : undefined,
-        date: form.date ? new Date(form.date) : new Date()
+        date: form.date ? new Date(form.date) : new Date(),
+        fuelType: form.fuelType
       };
       
       const res = await createEntry(payload);
@@ -54,7 +80,8 @@ export default function FuelForm({ onSaved, selectedStation }){
           pricePerLiter:'', 
           stationName:'', 
           odometer:'',
-          date: new Date().toISOString().split('T')[0]
+          date: new Date().toISOString().split('T')[0],
+          fuelType: 'petrol'
         });
         setTimeout(() => setSuccess(''), 3000);
       }
@@ -88,6 +115,23 @@ export default function FuelForm({ onSaved, selectedStation }){
           </div>
           
           <div className="mb-3">
+            <label className="form-label">Fuel Type *</label>
+            <div className="fuel-type-selector">
+              {fuelTypes.map(fuel => (
+                <button
+                  key={fuel.value}
+                  type="button"
+                  className={`btn fuel-type-btn ${form.fuelType === fuel.value ? 'active' : 'btn-outline-primary'}`}
+                  onClick={() => handleFuelTypeChange(fuel.value)}
+                >
+                  {fuel.icon} {fuel.label}
+                  <small className="d-block">₹{fuelPrices[fuel.value]}/{fuel.unit}</small>
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          <div className="mb-3">
             <label className="form-label">Station Name</label>
             <input 
               value={form.stationName} 
@@ -100,28 +144,51 @@ export default function FuelForm({ onSaved, selectedStation }){
           
           <div className="row mb-3">
             <div className="col-md-6">
-              <label className="form-label">Liters *</label>
+              <label className="form-label">
+                {form.fuelType === 'cng' ? 'Kilograms *' : 
+                 form.fuelType === 'electric' ? 'Full Charges *' : 'Liters *'}
+              </label>
               <input 
                 required 
                 type="number" 
-                step="0.01"
+                step={form.fuelType === 'electric' ? '1' : '0.01'}
                 value={form.liters} 
                 onChange={e=>setForm({...form, liters:e.target.value})} 
-                placeholder="0.00" 
+                placeholder={form.fuelType === 'electric' ? '1' : '0.00'} 
                 className="form-control"
               />
+              <small className="text-muted">
+                {form.fuelType === 'cng' ? 'CNG is measured in kilograms' : 
+                 form.fuelType === 'electric' ? 'Number of full charges' : 'Fuel quantity in liters'}
+              </small>
             </div>
             <div className="col-md-6">
-              <label className="form-label">Price per Liter *</label>
-              <input 
-                required 
-                type="number" 
-                step="0.01"
-                value={form.pricePerLiter} 
-                onChange={e=>setForm({...form, pricePerLiter:e.target.value})} 
-                placeholder="₹0.00" 
-                className="form-control"
-              />
+              <label className="form-label">
+                Price per {fuelTypes.find(f => f.value === form.fuelType)?.unit || 'unit'} *
+              </label>
+              <div className="input-group">
+                <span className="input-group-text">₹</span>
+                <input 
+                  required 
+                  type="number" 
+                  step="0.01"
+                  value={form.pricePerLiter} 
+                  onChange={e=>setForm({...form, pricePerLiter:e.target.value})} 
+                  placeholder="0.00" 
+                  className="form-control"
+                />
+                <button 
+                  type="button"
+                  className="btn btn-outline-secondary btn-sm"
+                  onClick={() => setForm({...form, pricePerLiter: fuelPrices[form.fuelType].toString()})}
+                  title="Use current market price"
+                >
+                  💰 Auto
+                </button>
+              </div>
+              <small className="text-muted">
+                Current {form.fuelType} price: ₹{fuelPrices[form.fuelType]}/{fuelTypes.find(f => f.value === form.fuelType)?.unit}
+              </small>
             </div>
           </div>
           
@@ -139,6 +206,10 @@ export default function FuelForm({ onSaved, selectedStation }){
           {form.liters && form.pricePerLiter && (
             <div className="alert alert-info">
               <strong>Total Cost: ₹{(parseFloat(form.liters || 0) * parseFloat(form.pricePerLiter || 0)).toFixed(2)}</strong>
+              <br />
+              <small>
+                {form.liters} {fuelTypes.find(f => f.value === form.fuelType)?.unit} × ₹{form.pricePerLiter}/{fuelTypes.find(f => f.value === form.fuelType)?.unit}
+              </small>
             </div>
           )}
           

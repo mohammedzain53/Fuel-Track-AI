@@ -23,8 +23,13 @@ async function googleNearby(lat, lng, radius = 5000, type = 'gas_station', apiKe
 // OpenStreetMap Overpass API (free)
 async function osmNearby(lat, lng, radius = 5000) {
   try {
-    // Enhanced Overpass query to get more name details
-    const query = `[out:json][timeout:15];(node["amenity"="fuel"](around:${radius},${lat},${lng});way["amenity"="fuel"](around:${radius},${lat},${lng}););out center tags;`;
+    // Use a smaller radius for more accurate results (max 10km)
+    const searchRadius = Math.min(radius, 10000);
+    
+    console.log(`Searching for fuel stations within ${searchRadius}m of ${lat}, ${lng}`);
+    
+    // Enhanced Overpass query to get more name details with stricter radius
+    const query = `[out:json][timeout:15];(node["amenity"="fuel"](around:${searchRadius},${lat},${lng});way["amenity"="fuel"](around:${searchRadius},${lat},${lng}););out center tags;`;
     
     const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
     const response = await fetch(url, {
@@ -66,10 +71,19 @@ async function osmNearby(lat, lng, radius = 5000) {
         address = `Coordinates: ${center.lat.toFixed(4)}, ${center.lon.toFixed(4)}`;
       }
       
+      // Calculate distance first to validate
+      const distance = calculateDistance(lat, lng, center.lat, center.lon);
+      
+      // Skip stations that are too far (more than the search radius + 1km buffer)
+      if (distance > radius + 1000) {
+        console.log(`Skipping station ${i + 1}: Too far (${distance}m > ${radius + 1000}m)`);
+        continue;
+      }
+      
       // Generate name using business name if available
       const stationName = getGoogleMapsStyleName(element.tags, businessName);
       
-      console.log(`Station ${i + 1}: Original name: "${element.tags?.name}", Business name: "${businessName}", Final name: "${stationName.name}"`);
+      console.log(`Station ${i + 1}: "${stationName.name}" at ${distance}m (${center.lat.toFixed(4)}, ${center.lon.toFixed(4)})`);
       
       transformedElements.push({
         id: element.id,
@@ -80,7 +94,7 @@ async function osmNearby(lat, lng, radius = 5000) {
         lat: center.lat,
         lon: center.lon,
         tags: element.tags,
-        distance: calculateDistance(lat, lng, center.lat, center.lon),
+        distance: distance,
         openingHours: element.tags?.opening_hours || 'Unknown',
         fuel_types: getFuelTypes(element.tags),
         googleMapsUrl: `https://www.google.com/maps?q=${center.lat},${center.lon}`,
@@ -105,14 +119,23 @@ async function osmNearby(lat, lng, radius = 5000) {
 // Nominatim API fallback (free)
 async function nominatimNearby(lat, lng, radius = 5000) {
   try {
-    const radiusKm = radius / 1000;
+    // Use a more precise bounding box calculation
+    const radiusKm = Math.min(radius, 10000) / 1000; // Max 10km
+    
+    // More accurate degree calculation for India (approximately)
+    const latDegreeKm = 110.574; // km per degree latitude
+    const lngDegreeKm = 111.320 * Math.cos(lat * Math.PI / 180); // km per degree longitude at this latitude
+    
     const bbox = {
-      left: lng - radiusKm/111,
-      bottom: lat - radiusKm/111,
-      right: lng + radiusKm/111,
-      top: lat + radiusKm/111
+      left: lng - radiusKm/lngDegreeKm,
+      bottom: lat - radiusKm/latDegreeKm,
+      right: lng + radiusKm/lngDegreeKm,
+      top: lat + radiusKm/latDegreeKm
     };
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=fuel+station&bounded=1&viewbox=${bbox.left},${bbox.top},${bbox.right},${bbox.bottom}&limit=20`;
+    
+    console.log(`Nominatim search bbox: ${bbox.left.toFixed(4)}, ${bbox.bottom.toFixed(4)}, ${bbox.right.toFixed(4)}, ${bbox.top.toFixed(4)}`);
+    
+    const url = `https://nominatim.openstreetmap.org/search?format=json&amenity=fuel&bounded=1&viewbox=${bbox.left},${bbox.top},${bbox.right},${bbox.bottom}&limit=15&addressdetails=1`;
     
     const response = await fetch(url, {
       headers: {
@@ -126,19 +149,25 @@ async function nominatimNearby(lat, lng, radius = 5000) {
     
     const data = await response.json();
     
-    const transformedElements = data.map(place => ({
-      id: place.place_id,
-      name: place.display_name.split(',')[0] || 'Fuel Station',
-      brand: extractBrand(place.display_name),
-      operator: 'Unknown',
-      address: place.display_name,
-      lat: parseFloat(place.lat),
-      lon: parseFloat(place.lon),
-      distance: calculateDistance(lat, lng, parseFloat(place.lat), parseFloat(place.lon))
-    }));
-    
-    // Sort by distance
-    transformedElements.sort((a, b) => a.distance - b.distance);
+    const transformedElements = data
+      .map(place => {
+        const stationLat = parseFloat(place.lat);
+        const stationLng = parseFloat(place.lon);
+        const distance = calculateDistance(lat, lng, stationLat, stationLng);
+        
+        return {
+          id: place.place_id,
+          name: place.display_name.split(',')[0] || 'Fuel Station',
+          brand: extractBrand(place.display_name),
+          operator: 'Unknown',
+          address: place.display_name,
+          lat: stationLat,
+          lon: stationLng,
+          distance: distance
+        };
+      })
+      .filter(station => station.distance <= radius + 1000) // Filter out stations beyond radius + 1km buffer
+      .sort((a, b) => a.distance - b.distance); // Sort by distance
     
     return {
       elements: transformedElements

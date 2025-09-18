@@ -8,7 +8,10 @@ exports.findNearby = async (req, res) => {
       return res.status(400).json({ error: 'Latitude and longitude are required' });
     }
 
-    const searchRadius = parseInt(radius) || 5000;
+    // Use smaller default radius for more accurate local results
+    const searchRadius = parseInt(radius) || 3000; // Reduced from 5000m to 3000m (3km)
+    
+    console.log(`Station search request: ${lat}, ${lng} within ${searchRadius}m`);
     let data;
     let provider;
 
