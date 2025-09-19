@@ -4,19 +4,26 @@ import Dashboard from './components/Dashboard';
 import FuelForm from './components/FuelForm';
 import FuelList from './components/FuelList';
 import Chatbot from './components/Chatbot';
+import FloatingChatbot from './components/FloatingChatbot';
 import StationSearch from './components/StationSearch';
 import Profile from './components/Profile';
 import Settings from './components/Settings';
 import HelpSupport from './components/HelpSupport';
 import About from './components/About';
 
+import { applyTheme, getCurrentTheme } from './utils/themes';
+
 function App() {
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [refreshList, setRefreshList] = useState(0);
-  const [darkMode, setDarkMode] = useState(false);
+
+
 
   useEffect(() => {
+    // Apply theme
+    applyTheme('modern-finance');
+
     // Check for existing token
     const token = localStorage.getItem('token');
     if (token) {
@@ -35,10 +42,7 @@ function App() {
       .catch(() => localStorage.removeItem('token'));
     }
 
-    // Check for dark mode preference
-    const savedDarkMode = localStorage.getItem('darkMode') === 'true';
-    setDarkMode(savedDarkMode);
-    document.body.classList.toggle('dark-mode', savedDarkMode);
+
 
     // Keyboard shortcuts
     const handleKeyPress = (e) => {
@@ -109,12 +113,9 @@ function App() {
     setActiveTab('add-fuel');
   };
 
-  const toggleDarkMode = () => {
-    const newDarkMode = !darkMode;
-    setDarkMode(newDarkMode);
-    localStorage.setItem('darkMode', newDarkMode.toString());
-    document.body.classList.toggle('dark-mode', newDarkMode);
-  };
+
+
+
 
   if (!user) {
     return <AuthForm onLogin={handleLogin} />;
@@ -143,56 +144,61 @@ function App() {
             <ul className="navbar-nav me-auto">
               <li className="nav-item">
                 <button 
-                  className={`nav-link btn btn-link ${activeTab === 'dashboard' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('dashboard')}
+                  className={`nav-link ${activeTab === 'dashboard' ? 'active' : ''}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Dashboard clicked');
+                    setActiveTab('dashboard');
+                  }}
+                  type="button"
                 >
                   📊 Dashboard
                 </button>
               </li>
               <li className="nav-item">
                 <button 
-                  className={`nav-link btn btn-link ${activeTab === 'add-fuel' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('add-fuel')}
+                  className={`nav-link ${activeTab === 'add-fuel' ? 'active' : ''}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Add Fuel clicked');
+                    setActiveTab('add-fuel');
+                  }}
+                  type="button"
                 >
                   ⛽ Add Fuel
                 </button>
               </li>
               <li className="nav-item">
                 <button 
-                  className={`nav-link btn btn-link ${activeTab === 'fuel-list' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('fuel-list')}
+                  className={`nav-link ${activeTab === 'fuel-list' ? 'active' : ''}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('History clicked');
+                    setActiveTab('fuel-list');
+                  }}
+                  type="button"
                 >
                   📋 History
                 </button>
               </li>
-              <li className="nav-item">
-                <button 
-                  className={`nav-link btn btn-link ${activeTab === 'chatbot' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('chatbot')}
-                >
-                  🤖 AI Assistant
-                </button>
-              </li>
+
             </ul>
             
             <div className="navbar-nav">
-              {/* Dark Mode Toggle */}
-              <div className="nav-item me-3">
-                <button 
-                  className="btn btn-outline-light btn-sm"
-                  onClick={toggleDarkMode}
-                  title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-                >
-                  {darkMode ? '☀️' : '🌙'}
-                </button>
-              </div>
+
+              
+
               
               <div className="nav-item dropdown">
                 <button 
-                  className="nav-link dropdown-toggle btn btn-link d-flex align-items-center" 
+                  className="dropdown-toggle d-flex align-items-center" 
                   data-bs-toggle="dropdown"
                   aria-expanded="false"
                   id="userDropdown"
+                  type="button"
                 >
                   <div className="user-avatar me-2">
                     {user.name.charAt(0).toUpperCase()}
@@ -247,13 +253,7 @@ function App() {
               >
                 Fuel History
               </button>
-              <button 
-                className={`nav-link ${activeTab === 'chatbot' ? 'active' : ''}`}
-                onClick={() => setActiveTab('chatbot')}
-                type="button"
-              >
-                AI Assistant
-              </button>
+
             </div>
           </nav>
           
@@ -273,7 +273,7 @@ function App() {
             
             {activeTab === 'fuel-list' && <FuelList refresh={refreshList} />}
             
-            {activeTab === 'chatbot' && <Chatbot />}
+
             
             {activeTab === 'profile' && <Profile user={user} onLogout={handleLogout} onUpdateProfile={(updatedData) => setUser({...user, ...updatedData})} />}
             
@@ -285,6 +285,9 @@ function App() {
           </div>
         </div>
       </div>
+      
+      {/* Floating AI Chatbot - Available on all pages */}
+      <FloatingChatbot />
     </>
   );
 }

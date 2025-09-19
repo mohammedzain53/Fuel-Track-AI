@@ -21,8 +21,11 @@ export default function AuthForm({ onLogin }) {
     confirmPassword: ''
   });
 
-  // Add floating animation effect
+  // Add floating animation effect and handle body class
   useEffect(() => {
+    // Add auth-page class to body
+    document.body.classList.add('auth-page');
+    
     const interval = setInterval(() => {
       const floatingElements = document.querySelectorAll('.floating-element');
       floatingElements.forEach((el, index) => {
@@ -30,7 +33,11 @@ export default function AuthForm({ onLogin }) {
       });
     }, 50);
 
-    return () => clearInterval(interval);
+    // Cleanup function
+    return () => {
+      clearInterval(interval);
+      document.body.classList.remove('auth-page');
+    };
   }, []);
 
   const handleLogin = async (e) => {
